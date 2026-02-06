@@ -1,35 +1,45 @@
 package dev.danielk.startandroid
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val myWebView: WebView = findViewById(R.id.webView)
 
-        // 1. 웹뷰 설정: 자바스크립트 허용 (GitHub API 연동 등에 필요할 수 있음)
-        myWebView.settings.javaScriptEnabled = true
+        myWebView.settings.apply {
+            javaScriptEnabled = true  // JS 허용
+            domStorageEnabled = true
+        }
 
-        // 2. 중요: 새 창이 뜨지 않고 웹뷰 내에서 페이지가 이동하도록 설정
+        // 브릿지 연결: HTML 내 window.AndroidBridge와 매핑됨
+        myWebView.addJavascriptInterface(WebAppInterface(this), "AndroidBridge")
+
         myWebView.webViewClient = WebViewClient()
-
-        // 3. Hello World 출력 (직접 HTML을 로드하거나 URL을 로드할 수 있음)
-//        val htmlData = "<html><body><h1>Hello World!</h1><p>이것은 안드로이드 웹뷰입니다.</p></body></html>"
-//        myWebView.loadData(htmlData, "text/html", "UTF-8")
-        // 3.  `MainActivity.kt`에서 `webView.loadUrl("file:///android_asset/index.html")`로 불러오면 됩니다.
-        // 만약 특정 사이트를 띄우고 싶다면:
-        // myWebView.loadUrl("https://www.google.com")
         myWebView.loadUrl("file:///android_asset/index.html")
+    }
 
-
-
-
-
+    // JS 인터페이스 클래스
+    inner class WebAppInterface(private val mContext: Context) {
+        @JavascriptInterface
+        fun pushToGithub(title: String, content: String) {
+            // 별도 스레드에서 실행될 수 있으므로 UI 작업은 runOnUiThread 사용
+            runOnUiThread {
+                // 잘 전달받았는지 토스트 메시지로 먼저 확인!
+                Toast.makeText(mContext, "제목: $title\n내용이 전달되었습니다.",
+                    Toast.LENGTH_LONG).show()
+            }
+            // TODO: 여기서 GitHub API 연동 로직(Retrofit 등)이 들어갈 예정입니다.
+        }
     }
 }
-
