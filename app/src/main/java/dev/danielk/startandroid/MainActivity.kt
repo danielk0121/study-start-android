@@ -3,11 +3,16 @@ package dev.danielk.startandroid
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.gson.Gson
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
@@ -47,10 +52,86 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun fetchGithubList(owner: String, repo: String) {
+            return fetchGithubList(owner, repo, "")
+        }
+
+        @JavascriptInterface
+        fun fetchGithubList(owner: String, repo: String, path: String) {
+            // 로그캣으로 인자값이 잘 넘어오는지 확인
+            Log.d("GithubAPI", "목록 요청 - Owner: $owner, Repo: $repo, Path: $path")
+
+            RetrofitClient.instance.getContents(owner, repo, path).enqueue(object : Callback<List<RepoContent>> {
+                override fun onResponse(call: Call<List<RepoContent>>, response: Response<List<RepoContent>>) {
+                    if (response.isSuccessful) {
+                        val list = response.body() ?: emptyList()
+
+                        // 폴더 우선 -> 이름순 정렬 로직
+                        val sortedList = list.sortedWith(compareBy<RepoContent> {
+                            if (it.type == "dir") 0 else 1
+                        }.thenBy { it.name.lowercase() })
+
+                        val jsonString = Gson().toJson(sortedList)
+
+                        runOnUiThread {
+                            val webView = findViewById<WebView>(R.id.webView)
+                            webView.evaluateJavascript("javascript:displayList('$jsonString')", null)
+                        }
+                    } else {
+                        showError("에러 발생: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<List<RepoContent>>, t: Throwable) {
+                    showError("onFailure: ${t.message}", t)
+                }
+            })
+        }
+
+        @JavascriptInterface
+        fun fetchFileContent(owner: String, repo: String, path: String) {
+            Log.i("DraftApp", "owner: $owner, repo: $repo, path: $path")
+
+            RetrofitClient.instance.getFileContent(owner, repo, path).enqueue(object : Callback<RepoContent> {
+                override fun onResponse(call: Call<RepoContent>, response: Response<RepoContent>) {
+                    if (response.isSuccessful) {
+                        val fileData = response.body()
+
+                        // GitHub은 파일 내용을 Base64로 인코딩해서 줌. 이를 디코딩함.
+                        val content = fileData?.content?.replace("\n", "") ?: ""
+                        val decodedBytes = android.util.Base64.decode(content, android.util.Base64.DEFAULT)
+                        val decodedString = String(decodedBytes)
+
+                        runOnUiThread {
+                            val webView = findViewById<WebView>(R.id.webView)
+
+                            // JS의 displayFileContent 함수로 디코딩된 문자열 전달
+                            // 줄바꿈 처리를 위해 역슬래시 등을 이스케이프 처리하여 전달
+                            val escapedString = decodedString.replace("'", "\\'").replace("\n", "\\n")
+                            webView.evaluateJavascript("javascript:displayFileContent('$escapedString')", null)
+                        }
+                    } else {
+                        showError("에러 발생: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<RepoContent>, t: Throwable) {
+                    showError("onFailure: ${t.message}", t)
+                }
+            })
+        }
+
+        private fun showError(msg: String) {
+            Log.e("DraftApp", "에러 발생: $msg")
             runOnUiThread {
-                Toast.makeText(mContext, "$owner/$repo 목록 요청함", Toast.LENGTH_SHORT).show()
+                Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show()
             }
-            // TODO: 여기서 실제 GitHub API 호출 로직 실행
+        }
+
+        private fun showError(msg: String, t: Throwable) {
+            Log.e("asdf", "에러 발생: $msg", t)
+            runOnUiThread {
+                Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

@@ -121,3 +121,129 @@ fun fetchGithubList(owner: String, repo: String) {
 
 이제 안드로이드가 GitHub API를 찔러서 결과를 가져오는 **진짜 백엔드 로직(Retrofit Interface)**을 짜보겠습니다! `~`
 
+---
+
+
+이제 본격적으로 **GitHub API 통신 로직**을 작성하겠습니다. 
+
+백엔드 개발자님께 익숙한 **Retrofit2**를 사용하여 인터페이스 기반으로 깔끔하게 구성해 보죠. 
+
+이 작업은 다음 순서로 진행됩니다.
+1. **데이터 모델(DTO) 생성**: API 응답 JSON을 매핑할 Kotlin 클래스 작성.
+2. **Retrofit 인터페이스 정의**: GitHub API 엔드포인트 선언.
+3. **API 서비스 빌더 작성**: Retrofit 객체 생성.
+4. **MainActivity에서 호출**: 웹뷰 브릿지를 통해 실제 통신 실행.
+
+---
+
+### 1. 데이터 모델(DTO) 생성
+GitHub 콘텐츠 API는 파일 정보를 리스트 형식으로 반환합니다. 필요한 필드만 뽑아서 정의합니다.
+
+**`RepoContent.kt`** 파일을 새로 만들거나 `MainActivity.kt` 파일 상단에 추가하세요.
+~~~
+data class RepoContent(
+    val name: String,
+    val path: String,
+    val type: String, // "file" 또는 "dir"
+    val size: Long,
+    val download_url: String? // 파일일 경우에만 존재
+)
+~~~
+
+### 2. Retrofit 인터페이스 정의
+파일 목록 조회와 파일 상세 내용 조회를 위한 인터페이스를 정의합니다.
+
+**`GithubService.kt`** (새 파일 생성)
+~~~
+import retrofit2.Call
+import retrofit2.http.GET
+import retrofit2.http.Path
+
+interface GithubService {
+    // 1. 특정 경로의 파일/폴더 목록 조회
+    @GET("repos/{owner}/{repo}/contents/{path}")
+    fun getContents(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("path") path: String = "" // 기본값은 루트 경로
+    ): Call<List<RepoContent>>
+}
+~~~
+
+### 3. API 서비스 빌더 작성
+Retrofit 인스턴스를 생성하는 싱글톤 객체를 만듭니다.
+
+**`RetrofitClient.kt`** (새 파일 생성)
+~~~
+import retrofit2.Retrofit
+import retrofit2.converter.gson:GsonConverterFactory
+
+object RetrofitClient {
+    private const val BASE_URL = "https://api.github.com/"
+
+    val instance: GithubService by lazy {
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    
+        retrofit.create(GithubService::class.java)
+    }
+}
+~~~
+
+### 4. MainActivity에서 로직 구현
+이제 웹뷰 브릿지(`fetchGithubList`)가 호출될 때 실제 API를 찌르고 결과를 웹뷰로 다시 쏴주는 코드를 작성합니다.
+
+**`MainActivity.kt` 수정**
+~~~
+import com.google.gson.Gson // JSON 변환용
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+
+// ... 기존 코드 ...
+
+@JavascriptInterface
+fun fetchGithubList(owner: String, repo: String) {
+    RetrofitClient.instance.getContents(owner, repo).enqueue(object : Callback<List<RepoContent>> {
+        override fun onResponse(call: Call<List<RepoContent>>, response: Response<List<RepoContent>>) {
+            if (response.isSuccessful) {
+                val list = response.body() ?: emptyList()
+                val jsonString = Gson().toJson(list) // 객체 리스트를 JSON 문자열로 변환
+
+                runOnUiThread {
+                    // 웹뷰의 displayList JS 함수 호출하여 데이터 전달
+                    val webView = findViewById<WebView>(R.id.webView)
+                    webView.evaluateJavascript("javascript:displayList('$jsonString')", null)
+                }
+            } else {
+                showError("에러 발생: ${response.code()}")
+            }
+        }
+
+        override fun onFailure(call: Call<List<RepoContent>>, t: Throwable) {
+            showError("네트워크 실패: ${t.message}")
+        }
+    })
+}
+
+private fun showError(msg: String) {
+    runOnUiThread {
+        Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show()
+    }
+}
+~~~
+
+---
+
+### 🛠️ 테스트 방법
+1. **AndroidManifest.xml**에 인터넷 권한이 있는지 다시 확인하세요.
+2. 앱을 실행하고 웹뷰 입력창에 다음을 입력해 보세요.
+   - **Owner**: `google`
+   - **Repo**: `dagger`
+3. **"파일 목록 가져오기"** 버튼을 누르면 밑에 파일 리스트가 촤르륵 뜨면 성공입니다!
+
+`~` 이제 깃허브 API 연동의 핵심인 **'통신 로직'**이 완성되었습니다. 혹시 실행했을 때 리스트가 잘 나오나요? 잘 나온다면 다음 단계로 특정 파일을 클릭했을 때 그 **내용(Content)을 조회**하는 기능을 붙여보겠습니다! `~`
+
+---

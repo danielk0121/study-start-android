@@ -14,12 +14,18 @@
 <body>
 <h3>GitHub Explorer</h3>
 
-<input type="text" id="owner" placeholder="Owner (e.g. google)">
-<input type="text" id="repo" placeholder="Repo (e.g. dagger)">
+<input type="text" id="owner" placeholder="Owner (e.g. google)" value="danielk0121">
+<input type="text" id="repo" placeholder="Repo (e.g. dagger)" value="danielk-blog">
 <button onclick="fetchRepoList()">파일 목록 가져오기</button>
 
 <div id="list-container">
     <p>목록이 여기에 표시됩니다.</p>
+</div>
+
+<div id="content-viewer" style="display:none; margin-top:20px; background:#f4f4f4; padding:10px; border:1px solid #ddd;">
+    <button onclick="closeViewer()" style="background:#666; width:auto; float:right;">닫기</button>
+    <h4>File Content</h4>
+    <pre id="code-area" style="white-space: pre-wrap; word-break: break-all; font-size:12px;"></pre>
 </div>
 
 <script>
@@ -34,6 +40,9 @@
 
     // 2. 안드로이드가 데이터를 가져온 후 호출할 함수
     function displayList(jsonString) {
+        const owner = document.getElementById('owner').value;
+        const repo = document.getElementById('repo').value;
+
         const files = JSON.parse(jsonString);
         const container = document.getElementById('list-container');
         container.innerHTML = "";
@@ -41,11 +50,31 @@
         files.forEach(file => {
             const div = document.createElement('div');
             div.className = 'file-item';
-            div.innerText = file.name + (file.type === 'dir' ? ' [Folder]' : '');
+            div.innerText = (file.type === 'dir' ? '[D] ' : '') + file.name;
             // 클릭 시 상세 조회 로직 연결 가능
-            div.onclick = () => alert('선택된 파일: ' + file.path);
+            // div.onclick = () => alert('선택된 파일: ' + file.path);
+            div.onclick = () => {
+                if (file.type === 'file') {
+                    // 안드로이드에 파일 상세 내용(Content) 요청하는 브릿지 호출 (곧 만들 예정)
+                    window.AndroidBridge.fetchFileContent(owner, repo, file.path);
+                } else {
+                    // 폴더일 경우 해당 경로로 다시 목록 조회
+                    window.AndroidBridge.fetchGithubList(owner, repo, file.path);
+                }
+            };
             container.appendChild(div);
         });
+    }
+
+    // 안드로이드가 디코딩된 내용을 보내주면 화면에 표시
+    function displayFileContent(content) {
+        document.getElementById('content-viewer').style.display = 'block';
+        document.getElementById('code-area').innerText = content;
+        // 목록은 잠시 숨기거나 아래로 밀리게 둠
+    }
+
+    function closeViewer() {
+        document.getElementById('content-viewer').style.display = 'none';
     }
 </script>
 </body>
