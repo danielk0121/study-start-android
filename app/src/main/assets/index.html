@@ -9,14 +9,38 @@
         button { width: 100%; padding: 10px; background: #0366d6; color: white; border: none; cursor: pointer; margin-bottom: 5px; }
         #list-container { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px; }
         .file-item { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; color: #0366d6; }
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            width: 60px; /* 라벨 너비 고정 */
+            font-weight: bold;
+            color: #333;
+        }
+        .input-group input {
+            flex: 1; /* 남은 공간 모두 차지 */
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 <h3>GitHub Explorer</h3>
 
-<input type="text" id="owner" placeholder="Owner (e.g. google)" value="danielk0121">
-<input type="text" id="repo" placeholder="Repo (e.g. dagger)" value="danielk-blog">
-<button onclick="fetchRepoList()">파일 목록 가져오기</button>
+<div class="input-container">
+    <div class="input-group">
+        <label for="owner">Owner</label>
+        <input type="text" id="owner" placeholder="Owner (e.g. google)" value="danielk0121">
+    </div>
+    <div class="input-group">
+        <label for="repo">Repo</label>
+        <input type="text" id="repo" placeholder="Repo (e.g. dagger)" value="danielk-blog">
+    </div>
+    <button onclick="fetchRepoList()">파일 목록 가져오기</button>
+</div>
 
 <div id="list-container">
     <p>목록이 여기에 표시됩니다.</p>
