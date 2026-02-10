@@ -1,5 +1,6 @@
-package dev.danielk.startandroid
+package dev.danielk.startandroid.data.api
 
+import dev.danielk.startandroid.data.model.RepoContent
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Path

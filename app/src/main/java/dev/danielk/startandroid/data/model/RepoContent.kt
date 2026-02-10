@@ -1,4 +1,4 @@
-package dev.danielk.startandroid
+package dev.danielk.startandroid.data.model
 
 data class RepoContent(
     val name: String,

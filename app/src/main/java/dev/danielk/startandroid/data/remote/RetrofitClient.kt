@@ -1,5 +1,6 @@
-package dev.danielk.startandroid
+package dev.danielk.startandroid.data.remote
 
+import dev.danielk.startandroid.data.api.GithubService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
